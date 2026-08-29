@@ -1,0 +1,17 @@
+;; This repository's own declaration of which contract it claims, per the
+;; superproject convention (CLAUDE.md "並行エージェント運用" / ADR-2607299000):
+;; the taxonomy itself lives at superproject `manifest/repository-rules.edn`
+;; -- this file only states which entry in that taxonomy this repo asserts,
+;; so conformance can be checked without re-deriving it from the name.
+
+{:repo/name "loop-fleet-refactor-wave"
+ :repo/org "cloud-itonami"
+ :repo/prefix "loop-"
+ :repo/role :continuous-orchestrator
+ :repo/execution :resident
+ :repo/must [:observe :evaluate :decide :act :record-evidence]
+ :repo/must-not [:own-domain-scoring-truth :bind-to-one-ci-provider]
+ :repo/scoring-truth-delegated-to
+ ["adr-2608039000-d1-is-not-a-premise-in-decentralized-paths"
+  "adr-2608261100-kotoba-app-vertical-slice-migration-unit"]
+ :repo/superproject-taxonomy-source "manifest/repository-rules.edn"}

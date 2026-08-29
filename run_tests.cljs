@@ -1,0 +1,19 @@
+#!/usr/bin/env nbb
+;; run_tests.cljs — runs the cljc test suite under nbb.
+;;
+;;   nbb --classpath src:test run_tests.cljs
+;;
+;; nbb-only per this workspace's script-host convention (no bb, no .sh).
+
+(ns run-tests
+  (:require [cljs.test :as t]
+            [loop-fleet-refactor-wave.mission-a-test]
+            [loop-fleet-refactor-wave.mission-b-test]))
+
+(defmethod t/report [:cljs.test/default :end-run-tests] [m]
+  (if (t/successful? m)
+    (js/process.exit 0)
+    (js/process.exit 1)))
+
+(t/run-tests 'loop-fleet-refactor-wave.mission-a-test
+             'loop-fleet-refactor-wave.mission-b-test)
