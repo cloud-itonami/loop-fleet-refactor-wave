@@ -139,3 +139,83 @@
                                      :has-kotoba-twin? false :host-mechanism? false
                                      :operational-script? false :host-boundary? false
                                      :unactivated-scaffold? false :defn-count 6})))))
+
+(def ^:private mio-social
+  "Verbatim orgs/cloud-itonami/mio/src/mio/methods/social.cljc, the single
+   candidate the 2026-08-30 wave surfaced."
+  (str "(ns mio.methods.social\n"
+       "  \"mio configuration wrapper around the shared social-publication membrane.\"\n"
+       "  (:require [etzhayyim.social.publication :as publication]))\n"
+       "\n"
+       "(def config {:actor-id \"mio\" :display-name \"mio\"})\n"
+       "(def DISCLAIMER (publication/disclaimer config))\n"
+       "\n"
+       "(defn draft-observation-post\n"
+       "  ([subject body sources] (draft-observation-post subject body sources \"\"))\n"
+       "  ([subject body sources author]\n"
+       "   (publication/draft-observation-post config subject body sources author)))\n"
+       "\n"
+       "(defn build-live [& args] (apply publication/build-live config args))\n"))
+
+(deftest decision-free-passthrough?-test
+  (testing "positive: the real 2026-08-30 candidate -- every defn delegates"
+    (is (true? (b/decision-free-passthrough? mio-social))))
+  (testing "positive: a 13-line social_post adapter"
+    (is (true? (b/decision-free-passthrough?
+                (str "(ns amime.cells.social-post.state-machine\n"
+                     "  (:require [amime.methods.social :as social]\n"
+                     "            [etzhayyim.social.publication :as publication]))\n"
+                     "\n"
+                     "(def phase-init publication/phase-init)\n"
+                     "\n"
+                     "(defn transition-to-drafted [state]\n"
+                     "  (publication/transition-to-drafted social/config state))\n")))))
+  (testing "negative: delegates AND decides -- a branch is a decision"
+    (is (false? (b/decision-free-passthrough?
+                 (str "(ns a.b (:require [x.y :as y]))\n"
+                      "\n"
+                      "(defn f [s]\n"
+                      "  (if (:ready? s) (y/go s) (y/wait s)))\n")))))
+  (testing "negative: delegates AND decides -- a comparison is a decision"
+    (is (false? (b/decision-free-passthrough?
+                 (str "(ns a.b (:require [x.y :as y]))\n"
+                      "\n"
+                      "(defn f [s n]\n"
+                      "  (y/emit s (> n 3)))\n")))))
+  (testing "negative: real decision core with no delegation at all"
+    (is (false? (b/decision-free-passthrough?
+                 (str "(ns a.b)\n"
+                      "\n"
+                      "(defn solve [state]\n"
+                      "  (cond (:done? state) :complete\n"
+                      "        :else :pending))\n")))))
+  (testing "negative: no defn at all is not this class -- defn-count rejects it"
+    (is (false? (b/decision-free-passthrough?
+                 "(ns a.b (:require [x.y :as y]))\n\n(def z y/w)\n"))))
+  (testing "the ns form's own :require aliases must not count as calls"
+    (is (false? (b/decision-free-passthrough? "(ns a.b (:require [x.y :as y]))\n\n"))))
+  (testing "nil / empty"
+    (is (false? (b/decision-free-passthrough? nil)))
+    (is (false? (b/decision-free-passthrough? "")))))
+
+(deftest candidate-slice?-rejects-passthrough-test
+  (testing "a file that passes every other predicate is still rejected"
+    (is (false? (b/candidate-slice? {:line-count 13
+                                     :custody-gated? false
+                                     :has-kotoba-twin? false
+                                     :host-mechanism? false
+                                     :operational-script? false
+                                     :host-boundary? false
+                                     :unactivated-scaffold? false
+                                     :decision-free-passthrough? true
+                                     :defn-count 2}))))
+  (testing "and accepted once it is not a pass-through"
+    (is (true? (b/candidate-slice? {:line-count 13
+                                    :custody-gated? false
+                                    :has-kotoba-twin? false
+                                    :host-mechanism? false
+                                    :operational-script? false
+                                    :host-boundary? false
+                                    :unactivated-scaffold? false
+                                    :decision-free-passthrough? false
+                                    :defn-count 2})))))

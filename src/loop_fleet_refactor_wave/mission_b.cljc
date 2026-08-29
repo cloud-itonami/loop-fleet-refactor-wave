@@ -105,6 +105,57 @@
         throw-first (count (re-seq #"\(defn-?\s+[^\s\[\]]+\s+(?:\^\S+\s+)?(?:\"(?:[^\"\\]|\\.)*\"\s+)?\[[^\]]*\]\s*\(throw[\s(]" src))]
     (and (pos? defns) (= defns throw-first))))
 
+(defn strip-ns-form
+  "Drop the leading `(ns ...)` form so that its `:require` aliases are not
+   counted as calls by `decision-free-passthrough?`."
+  [source-text]
+  (str/replace (or source-text "") #"(?s)^.*?\(ns\s.*?\n\n" ""))
+
+(defn decision-free-passthrough?
+  "True if every function in `source-text` is a pass-through into another
+   namespace and the file makes no decision of its own -- no branch, no
+   comparison, no arithmetic, no collection reduction. Such a file is a
+   configuration/adapter wrapper: its product semantics live in the namespace
+   it delegates to, not here.
+
+   Porting one cannot produce a migration. Either the delegate is still .cljc,
+   in which case the workspace rule 'do not migrate a surface whose dependency
+   is still .cljc' forbids it outright, or the port reproduces the same
+   pass-through -- a diff with zero behaviour that nonetheless counts as a
+   landed slice.
+
+   Found 2026-08-30 by production run. The wave surfaced exactly one candidate,
+   `mio/src/mio/methods/social.cljc` (13 lines, two defns, both
+   `(publication/... config args)` into `etzhayyim.social.publication`, which
+   has no .kotoba twin anywhere in the fleet). Measured across
+   orgs/cloud-itonami: 658 files survive every other predicate in this
+   namespace and still match this one, and ALL TWENTY of the smallest
+   survivors are of this shape. Because `mission-b-candidates` sorts by
+   ascending line count, this class does not merely appear in the queue -- it
+   occupies the entire front of it, so every wave would draw its full slate
+   from files that cannot legitimately land, and would redraw them forever.
+
+   Third instance of the defect class `operational-script-signal?` names
+   ('small and empty of decisions'), after `unactivated-scaffold?`. Small,
+   pure and self-contained is not the same property as carrying a decision.
+
+   Verified 2026-08-30 in both directions against real files. Matches:
+   `mio/methods/social.cljc`; the 13-line `cells/social_post/state_machine.cljc`
+   adapters in amime / kaname / kenchi / kuni-umi / actor-hoshimori;
+   `infra-utility-connect`'s four 12-line `cells/*/cell.cljc`; and
+   `cloud-itonami-app/src/cloud/itonami/app/health.cljc`, whose own docstring
+   reads \"decide nothing\" because it is the host half of a migration that
+   already happened. Does not match: `hikari`'s `grid_edge` and
+   `solar_pv_install` state machines (the same negative controls
+   `unactivated-scaffold?` uses), nor `mio`'s own `reward.cljc` and
+   `analyze.cljc`, which delegate but also decide."
+  [source-text]
+  (let [src (strip-ns-form source-text)
+        defns (count (re-seq #"\(defn-?\s" src))
+        ns-calls (count (re-seq #"\([a-zA-Z][a-zA-Z0-9_.\-]*/[a-zA-Z0-9_.\-!?*<>=+]+[\s)]" src))
+        decisions (count (re-seq #"\((?:if|if-not|if-let|when|when-not|when-let|cond|condp|case|and|or|not|=|not=|<|>|<=|>=|\+|-|\*|/|min|max|count|filter|remove|reduce|some|every\?)[\s)]" src))]
+    (and (pos? defns) (pos? ns-calls) (zero? decisions))))
+
 (defn defn-count
   "How many `defn`/`defn-` forms `source-text` contains. A file with zero is
    not product-decision logic -- it is requires, data, or glue."
@@ -115,17 +166,19 @@
   "A file is a Mission B first-wave candidate when it: is not custody-gated,
    has no existing .kotoba twin, shows no host-mechanism signal, does not sit
    on a declared host boundary, is not an operational test-runner/build
-   script, is not an unactivated R0 scaffold, defines at least one function,
-   and is small enough to review and land as one bounded slice in a single
-   wave."
+   script, is not an unactivated R0 scaffold, is not a decision-free
+   pass-through wrapper, defines at least one function, and is small enough to
+   review and land as one bounded slice in a single wave."
   [{:keys [line-count custody-gated? has-kotoba-twin? host-mechanism?
-           operational-script? host-boundary? unactivated-scaffold? defn-count]}]
+           operational-script? host-boundary? unactivated-scaffold?
+           decision-free-passthrough? defn-count]}]
   (and (not custody-gated?)
        (not has-kotoba-twin?)
        (not host-mechanism?)
        (not operational-script?)
        (not host-boundary?)
        (not unactivated-scaffold?)
+       (not decision-free-passthrough?)
        (pos? (or defn-count 0))
        (pos? line-count)
        (<= line-count 400)))
