@@ -40,6 +40,56 @@
     (is (false? (b/operational-script-signal? "src/cloud/itonami/app/store_core.cljc"
                                                "(defn append-message [s m] (update s :messages conj m))")))))
 
+(deftest host-boundary-path?-test
+  (testing "positive: real 2026-08-29 miss -- tadori host adapter"
+    (is (true? (b/host-boundary-path? "orgs/cloud-itonami/tadori/src/tadori/host/http.clj"))))
+  (testing "positive: host as a leading segment"
+    (is (true? (b/host-boundary-path? "host/adapter.clj"))))
+  (testing "negative: ordinary decision-core path"
+    (is (false? (b/host-boundary-path? "orgs/cloud-itonami/hikari/cells/grid_edge/state_machine.cljc")))
+    (is (false? (b/host-boundary-path? nil))))
+  (testing "negative: 'host' inside a longer word is not a segment"
+    (is (false? (b/host-boundary-path? "src/app/hosting_plan.clj")))
+    (is (false? (b/host-boundary-path? "src/app/localhost_util.clj")))))
+
+(deftest host-mechanism-signal?-babashka-test
+  (testing "the 2026-08-29 miss: babashka.http-client was not in the enumeration"
+    (is (true? (b/host-mechanism-signal?
+                "(:require [babashka.http-client :as http])"))))
+  (testing "other babashka authority namespaces"
+    (is (true? (b/host-mechanism-signal? "(babashka.process/shell \"ls\")")))
+    (is (true? (b/host-mechanism-signal? "(babashka.fs/exists? p)"))))
+  (testing "bare filesystem verbs"
+    (is (true? (b/host-mechanism-signal? "(slurp \"x.edn\")")))
+    (is (true? (b/host-mechanism-signal? "(spit \"x.edn\" v)"))))
+  (testing "negative: still does not fire on pure logic"
+    (is (false? (b/host-mechanism-signal?
+                 "(defn step [s e] (assoc s :last e))")))))
+
+(deftest unactivated-scaffold?-test
+  (testing "positive: the real 2026-08-29 hikari R0 scaffold shape"
+    (is (true? (b/unactivated-scaffold?
+                (str "(defn solve [_state]\n"
+                     "  (throw (ex-info \"hikari R0 scaffold: not activated.\"\n"
+                     "                  {:cell :storage-battery :status :r0-scaffold})))")))))
+  (testing "positive: docstring between name and arg vector still matches"
+    (is (true? (b/unactivated-scaffold?
+                "(defn solve \"doc\" [s] (throw (ex-info \"nope\" {})))"))))
+  (testing "negative: defensive throw nested in when-not is real logic"
+    (is (false? (b/unactivated-scaffold?
+                 (str "(defn commit [state]\n"
+                      "  (let [cs (grid-state state)]\n"
+                      "    (when-not (get cs \"freq_restored\")\n"
+                      "      (throw (ex-info \"not restored\" {})))\n"
+                      "    {\"cell_state\" cs}))")))))
+  (testing "negative: mixed file -- one scaffold defn, one real defn"
+    (is (false? (b/unactivated-scaffold?
+                 (str "(defn a [s] (throw (ex-info \"x\" {})))\n"
+                      "(defn b [s] (assoc s :ok true))")))))
+  (testing "negative: no defn at all"
+    (is (false? (b/unactivated-scaffold? "(ns x)")))
+    (is (false? (b/unactivated-scaffold? nil)))))
+
 (deftest defn-count-test
   (is (= 0 (b/defn-count nil)))
   (is (= 0 (b/defn-count "(require '[clojure.test :as t])")))
@@ -73,4 +123,19 @@
   (testing "not a candidate: zero defn (requires/data only)"
     (is (false? (b/candidate-slice? {:line-count 4 :custody-gated? false
                                       :has-kotoba-twin? false :host-mechanism? false
-                                      :operational-script? false :defn-count 0})))))
+                                      :operational-script? false :defn-count 0}))))
+  (testing "not a candidate: sits on a declared host boundary (tadori regression)"
+    (is (false? (b/candidate-slice? {:line-count 7 :custody-gated? false
+                                      :has-kotoba-twin? false :host-mechanism? false
+                                      :operational-script? false :host-boundary? true
+                                      :unactivated-scaffold? false :defn-count 1}))))
+  (testing "not a candidate: unactivated R0 scaffold (hikari regression)"
+    (is (false? (b/candidate-slice? {:line-count 9 :custody-gated? false
+                                      :has-kotoba-twin? false :host-mechanism? false
+                                      :operational-script? false :host-boundary? false
+                                      :unactivated-scaffold? true :defn-count 1}))))
+  (testing "still a candidate when both new gates are clear"
+    (is (true? (b/candidate-slice? {:line-count 121 :custody-gated? false
+                                     :has-kotoba-twin? false :host-mechanism? false
+                                     :operational-script? false :host-boundary? false
+                                     :unactivated-scaffold? false :defn-count 6})))))
