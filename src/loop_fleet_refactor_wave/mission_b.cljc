@@ -12,7 +12,7 @@
 
    Pure, portable across clj/cljs/nbb. No I/O -- callers read files and pass
    text/paths in."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (defn custody-gated?
   "True if `script-text` (from a repo's docs/ or scripts/ *.cljs file) is a
