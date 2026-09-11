@@ -72,5 +72,5 @@ script owns reading the filesystem.
 ## Testing
 
 ```bash
-nbb --classpath src:test run_tests.cljk
+kbb --backend sci --classpath src:test run_tests.cljk
 ```
