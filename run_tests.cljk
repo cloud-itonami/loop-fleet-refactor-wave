@@ -1,7 +1,7 @@
 #!/usr/bin/env nbb
-;; run_tests.cljs — runs the cljc test suite under nbb.
+;; run_tests.cljk — runs the cljc test suite under nbb.
 ;;
-;;   nbb --classpath src:test run_tests.cljs
+;;   nbb --classpath src:test run_tests.cljk
 ;;
 ;; nbb-only per this workspace's script-host convention (no bb, no .sh).
 
