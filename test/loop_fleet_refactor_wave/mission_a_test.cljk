@@ -1,6 +1,6 @@
 (ns loop-fleet-refactor-wave.mission-a-test
   (:require [loop-fleet-refactor-wave.mission-a :as a]
-            #?(:clj  [clojure.test :refer [deftest is testing]]
+            #?(:clj  [kotoba.test :refer [deftest is testing]]
                :cljs [cljs.test :refer [deftest is testing] :include-macros true])))
 
 (deftest decentralization-claim?-test

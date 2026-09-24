@@ -1,6 +1,6 @@
 (ns loop-fleet-refactor-wave.mission-b-test
   (:require [loop-fleet-refactor-wave.mission-b :as b]
-            #?(:clj  [clojure.test :refer [deftest is testing]]
+            #?(:clj  [kotoba.test :refer [deftest is testing]]
                :cljs [cljs.test :refer [deftest is testing] :include-macros true])))
 
 (deftest custody-gated?-test
