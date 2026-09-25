@@ -13,8 +13,8 @@ taxonomy's `:must-not :own-domain-scoring-truth`). It owns two things only:
    list of plausible candidates. These are heuristics for *discovery*, not
    the final acceptance judgment.
 2. **A record of what happened** — wave outcomes are recorded in the
-   superproject's ADR (`90-docs/adr/2608290100-loop-fleet-refactor-wave-scaffold.edn`)
-   and in the tick/loop ledgers under `~/.gftd/` on the operating machine,
+   superproject's ADR (`90-docs/adr/2608290100-loop-fleet-refactor-wave-scaffold.kotoba`)
+   and in the tick/loop ledgers under `~/.itonami/` on the operating machine,
    mirroring the `svelte-cljs-wave` pattern this actor is modeled on.
 
 The actual acceptance criteria live elsewhere and are **not redefined here**:
@@ -26,9 +26,10 @@ The actual acceptance criteria live elsewhere and are **not redefined here**:
   break?" If yes and the path claims decentralization, it's in scope.
 - **Mission B** (migrate one `kotoba/app` vertical slice per repo per wave
   from `.clj`/`.cljc` to `.kotoba`) — criterion is superproject
-  ADR-2608261100 and the `kotoba-clj-to-kotoba` skill. The migration unit is
-  one bounded slice (state → effect → event → governor → UI → checkpoint),
-  never a whole repo.
+  ADR-2608261100 and the `kotoba-clj-to-kotoba` skill. ADR-2608261100 is
+  now superseded: the migration unit is the whole component
+  (`q9-migration.edn` v3), not a vertical slice. The `mission-b`
+  predicates here still describe the older slice-shaped first wave.
 
 ## What actually drives the loop
 
@@ -36,11 +37,13 @@ The operational orchestration (measure → dispatch fresh agents → advance
 west pins → re-measure) lives in the **superproject**, not here, mirroring
 `svelte-cljs-wave`:
 
-- `scripts/fleet-refactor-wave-tick.cljs` — measures candidates deterministically,
-  requiring this repo's classifier namespaces off its own checked-out
-  `orgs/cloud-itonami/loop-fleet-refactor-wave/src` classpath entry.
+- `scripts/fleet-refactor-wave-tick.cljk` — measures candidates deterministically.
+  It does **not** require this repo: it carries a verbatim copy of the
+  predicates, so it can still exit 2 ("could not measure") where this repo is
+  not checked out. Change a predicate here and its copy there in one change.
 - `.claude/skills/fleet-refactor-wave/SKILL.md` — the wave procedure.
-- `scripts/com.gftd.fleet-refactor-wave.plist` — the launchd resident job.
+- `scripts/fleet-refactor-wave-loop.cljk` + `scripts/cloud.itonami.bot.fleet-refactor-wave.plist`
+  — the launchd resident job.
 
 This split exists because the orchestration script needs filesystem/network
 I/O (find, git, gh) that has no business being "portable domain logic," while
@@ -71,6 +74,13 @@ script owns reading the filesystem.
 
 ## Testing
 
+`kotoba.lang.text` must be on the classpath (kbb resolves no git deps), so
+from a superproject checkout:
+
 ```bash
-kbb --backend sci --classpath src:test run_tests.cljk
+kbb --backend sci --classpath "src:test:../../kotoba-lang/text/src" run_tests.cljk
 ```
+
+Expected: 15 tests, 74 assertions, 0 failures. Operator walkthrough (tests,
+probing a heuristic on a real file, running the tick):
+[`docs/operator-quickstart.md`](docs/operator-quickstart.md).
